@@ -1,5 +1,9 @@
 import requests
+import os
 from datetime import datetime
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 products = [
     {"name": "Royal Canin UC33 貓飼料 10KG", "search": "Royal Canin 法國皇家泌尿道保健成貓UC33 10KG"},
@@ -8,6 +12,14 @@ products = [
     {"name": "大研生醫B群5盒", "search": "大研生醫B群緩釋雙層錠 30錠 5盒"},
     {"name": "SK-II青春露330ml", "search": "SK-II青春露330ml"},
 ]
+
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
+    try:
+        requests.post(url, json=payload, timeout=10)
+    except Exception as e:
+        print(f"Telegram 發送失敗：{e}")
 
 def get_pchome_detail(prod_id):
     url = f"https://ecshweb.pchome.com.tw/prod/v2/items/{prod_id}/price"
@@ -35,7 +47,6 @@ def get_pchome_price(keyword):
         final_price = sale_price if sale_price else list_price
         results.append({
             "name": item["name"],
-            "list_price": list_price,
             "origin_price": origin_price,
             "final_price": final_price,
             "url": f"https://24h.pchome.com.tw/prod/{prod_id}"
@@ -43,23 +54,27 @@ def get_pchome_price(keyword):
     return results
 
 def generate_report():
-    print("=" * 60)
-    print(f"📦 每日價格報告 {datetime.now().strftime('%Y/%m/%d %H:%M')}")
-    print("=" * 60)
+    now = datetime.now().strftime('%Y/%m/%d %H:%M')
+    report = f"📦 <b>每日價格報告 {now}</b>\n"
+    report += "=" * 30 + "\n"
+
     for product in products:
-        print(f"\n📌 {product['name']}")
-        print("  🛒 PChome")
+        report += f"\n📌 <b>{product['name']}</b>\n"
+        report += "🛒 PChome\n"
         items = get_pchome_price(product["search"])
         if items:
             for item in items:
-                print(f"    - {item['name'][:35]}")
+                report += f"  • {item['name'][:30]}\n"
                 if item["origin_price"] and str(item["origin_price"]) != str(item["final_price"]):
-                    print(f"       💰 原價 NT${item['origin_price']} → 折扣價 NT${item['final_price']}")
+                    report += f"    💰 原價 NT${item['origin_price']} → 折扣價 NT${item['final_price']}\n"
                 else:
-                    print(f"       💰 售價 NT${item['final_price']}")
-                print(f"       🔗 {item['url']}")
+                    report += f"    💰 售價 NT${item['final_price']}\n"
+                report += f"    🔗 {item['url']}\n"
         else:
-            print("    ⚠️ 查無結果")
+            report += "  ⚠️ 查無結果\n"
+
+    print(report)
+    send_telegram(report)
 
 if __name__ == "__main__":
     generate_report()
