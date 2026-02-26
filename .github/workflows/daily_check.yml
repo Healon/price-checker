@@ -18,10 +18,7 @@ jobs:
           python-version: '3.11'
 
       - name: 安裝套件
-        run: |
-          pip install requests beautifulsoup4 playwright
-          playwright install chromium
-          playwright install-deps chromium
+        run: pip install requests beautifulsoup4 lxml urllib3
 
       - name: 執行價格查詢
         env:
