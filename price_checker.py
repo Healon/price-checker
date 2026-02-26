@@ -6,6 +6,7 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import os
 from datetime import datetime
+import zoneinfo
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -144,7 +145,7 @@ def get_momo_price(goods_code):
     return None
 
 def generate_report():
-    now = datetime.now().strftime('%Y/%m/%d %H:%M')
+    now = datetime.now(zoneinfo.ZoneInfo("Asia/Taipei")).strftime('%Y/%m/%d %H:%M')
     report = f"📦 <b>每日價格報告 {now}</b>\n"
     report += "=" * 30 + "\n"
 
