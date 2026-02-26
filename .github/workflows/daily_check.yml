@@ -3,7 +3,7 @@ name: 每日價格查詢
 on:
   schedule:
     - cron: '0 2 * * *'  # UTC 02:00 = 台灣時間 10:00
-  workflow_dispatch:       # 允許手動執行測試
+  workflow_dispatch:
 
 jobs:
   check-prices:
@@ -21,4 +21,7 @@ jobs:
         run: pip install requests beautifulsoup4
 
       - name: 執行價格查詢
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python price_checker.py
