@@ -48,8 +48,8 @@ HEADERS = {
 def make_session():
     s = requests.Session()
     retry = Retry(
-        total=2,              # 從5次降到2次
-        backoff_factor=0.5,   # 等待時間縮短
+        total=2,
+        backoff_factor=0.5,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"],
         raise_on_status=False,
@@ -59,7 +59,7 @@ def make_session():
     s.mount("http://", adapter)
     return s
 
-def fetch_html(url, timeout=15):   # timeout 從60秒降到15秒
+def fetch_html(url, timeout=15):
     s = make_session()
     r = s.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
     r.raise_for_status()
@@ -113,19 +113,18 @@ def extract_momo_price(html):
     soup = BeautifulSoup(html, "lxml")
     text = soup.get_text(" ", strip=True)
 
-    # 優先：折扣後價格
+    # 1. 折扣後價格
     m = re.search(r"折扣後價格\s*([0-9,]+)\s*元", text)
     if m:
         return int(m.group(1).replace(",", ""))
 
-    # 備援：促銷價
+    # 2. 促銷價（魚油等商品用這個）
     m2 = re.search(r"促銷價\s*([0-9,]+)\s*元", text)
     if m2:
         return int(m2.group(1).replace(",", ""))
 
-    # 關鍵字附近最小價格
-    keywords = ["限時折後價", "折後價", "現折價", "折扣價"]
-    for kw in keywords:
+    # 3. 關鍵字附近最小價格
+    for kw in ["限時折後價", "折後價", "現折價", "折扣價"]:
         idx = text.find(kw)
         if idx != -1:
             window = text[max(0, idx-30): idx+80]
@@ -140,32 +139,21 @@ def get_momo_price(goods_code):
     if not goods_code:
         return None
     ts = int(time.time())
+    # 行動版優先（比桌機版更少被封鎖）
     urls_to_try = [
-        f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}",
         f"https://m.momoshop.com.tw/describe.momo?goodsCode={goods_code}&timeStamp={ts}",
+        f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}",
     ]
     for try_url in urls_to_try:
         try:
             html = fetch_html(try_url, timeout=15)
-            soup = BeautifulSoup(html, "lxml")
-            text = soup.get_text(" ", strip=True)
-
-            # DEBUG 只印魚油
-            if goods_code == "8133412":
-                print(f"頁面長度：{len(text)}")
-                for kw in ["折扣後價格", "促銷價", "折後價", "現折", "售價", "定價", "活動價", "特價"]:
-                    idx = text.find(kw)
-                    if idx != -1:
-                        print(f"[{kw}]：{text[max(0,idx-20):idx+60]}")
-                nums = re.findall(r'\b\d{4,5}\b', text)
-                print(f"4-5位數字：{nums[:20]}")
-
             price = extract_momo_price(html)
             if price:
                 momo_link = f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}"
                 return {"price": str(price), "url": momo_link}
         except Exception as e:
             print(f"Momo 失敗：{e}")
+            continue
     return None
 
 def generate_report():
