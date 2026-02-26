@@ -29,7 +29,7 @@ products = [
     {
         "name": "大研生醫B群5盒",
         "pchome_search": "大研生醫B群緩釋雙層錠 30錠 5盒",
-        "momo_code": ""
+        "momo_code": "11873852"
     },
     {
         "name": "SK-II青春露330ml",
