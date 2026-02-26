@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import os
+import re
 from datetime import datetime
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -25,25 +26,26 @@ def send_telegram(message):
 def get_pchome_detail(prod_id):
     url = f"https://24h.pchome.com.tw/prod/{prod_id}"
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "zh-TW,zh;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     }
     try:
-        res = requests.get(url, headers=headers, timeout=10)
+        res = requests.get(url, headers=headers, timeout=15)
         soup = BeautifulSoup(res.text, "html.parser")
-        
-        # 找頁面內嵌的 JSON 價格資料
+
+        # 抓所有價格數字（格式如 $5,885）
         import re
-        scripts = soup.find_all("script")
-        for script in scripts:
-            if script.string and "finalPrice" in script.string:
-                match = re.search(r'"finalPrice"\s*:\s*(\d+)', script.string)
-                origin_match = re.search(r'"originPrice"\s*:\s*(\d+)', script.string)
-                if match:
-                    final_price = match.group(1)
-                    origin_price = origin_match.group(1) if origin_match else None
-                    return final_price, origin_price
+        prices = re.findall(r'\$([0-9,]+)', res.text)
+        prices = [int(p.replace(",", "")) for p in prices if int(p.replace(",", "")) > 100]
+
+        if len(prices) >= 2:
+            # 第一個是折扣價，第二個是原價
+            return str(prices[0]), str(prices[1])
+        elif len(prices) == 1:
+            return str(prices[0]), None
         return None, None
-    except:
+    except Exception as e:
         return None, None
 
 def get_pchome_price(keyword):
