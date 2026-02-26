@@ -2,7 +2,7 @@ name: 每日價格查詢
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # UTC 02:00 = 台灣時間 10:00
+    - cron: '0 2 * * *'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,10 @@ jobs:
           python-version: '3.11'
 
       - name: 安裝套件
-        run: pip install requests beautifulsoup4
+        run: |
+          pip install requests beautifulsoup4 playwright
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: 執行價格查詢
         env:
