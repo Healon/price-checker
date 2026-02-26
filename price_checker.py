@@ -73,20 +73,6 @@ def send_telegram(message):
     except Exception as e:
         print(f"Telegram 發送失敗：{e}")
 
-def get_pchome_detail(prod_id):
-    url = f"https://24h.pchome.com.tw/prod/{prod_id}"
-    try:
-        html = fetch_html(url)
-        prices = re.findall(r'\$([0-9,]+)', html)
-        prices = [int(p.replace(",", "")) for p in prices if int(p.replace(",", "")) > 100]
-        if len(prices) >= 2:
-            return str(prices[0]), str(prices[1])
-        elif len(prices) == 1:
-            return str(prices[0]), None
-        return None, None
-    except:
-        return None, None
-
 def get_pchome_price(keyword):
     url = "https://ecshweb.pchome.com.tw/search/v3.3/all/results"
     params = {"q": keyword, "page": 1, "sort": "rnk/dc"}
@@ -94,14 +80,15 @@ def get_pchome_price(keyword):
         res = requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         data = res.json()
         results = []
-        for item in data.get("prods", [])[:3]:
+        prods = data.get("prods") or []
+        for item in prods[:3]:
             prod_id = item["Id"]
-            sale_price, origin_price = get_pchome_detail(prod_id)
-            final_price = sale_price if sale_price else item.get("price")
+            sale_price = item.get("price")
+            origin_price = item.get("originPrice")
             results.append({
                 "name": item["name"],
-                "origin_price": origin_price,
-                "final_price": final_price,
+                "origin_price": str(origin_price) if origin_price else None,
+                "final_price": str(sale_price) if sale_price else None,
                 "url": f"https://24h.pchome.com.tw/prod/{prod_id}"
             })
         return results
