@@ -1,4 +1,5 @@
 import requests
+from bs4 import BeautifulSoup
 import os
 from datetime import datetime
 
@@ -22,14 +23,26 @@ def send_telegram(message):
         print(f"Telegram 發送失敗：{e}")
 
 def get_pchome_detail(prod_id):
-    url = f"https://ecshweb.pchome.com.tw/prod/v2/items/{prod_id}/price"
-    headers = {"User-Agent": "Mozilla/5.0"}
+    url = f"https://24h.pchome.com.tw/prod/{prod_id}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+    }
     try:
         res = requests.get(url, headers=headers, timeout=10)
-        data = res.json()
-        origin_price = data.get("originPrice")
-        sale_price = data.get("salePrice") or data.get("price")
-        return sale_price, origin_price
+        soup = BeautifulSoup(res.text, "html.parser")
+        
+        # 找頁面內嵌的 JSON 價格資料
+        import re
+        scripts = soup.find_all("script")
+        for script in scripts:
+            if script.string and "finalPrice" in script.string:
+                match = re.search(r'"finalPrice"\s*:\s*(\d+)', script.string)
+                origin_match = re.search(r'"originPrice"\s*:\s*(\d+)', script.string)
+                if match:
+                    final_price = match.group(1)
+                    origin_price = origin_match.group(1) if origin_match else None
+                    return final_price, origin_price
+        return None, None
     except:
         return None, None
 
