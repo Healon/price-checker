@@ -1,4 +1,4 @@
-# price-checkerimport requests
+# import requests
 from datetime import datetime
 
 products = [
