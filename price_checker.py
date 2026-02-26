@@ -140,7 +140,6 @@ def get_momo_price(goods_code):
     if not goods_code:
         return None
     ts = int(time.time())
-    # 只用桌機版（行動版容易 timeout）
     urls_to_try = [
         f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}",
         f"https://m.momoshop.com.tw/describe.momo?goodsCode={goods_code}&timeStamp={ts}",
@@ -148,13 +147,25 @@ def get_momo_price(goods_code):
     for try_url in urls_to_try:
         try:
             html = fetch_html(try_url, timeout=15)
+            soup = BeautifulSoup(html, "lxml")
+            text = soup.get_text(" ", strip=True)
+
+            # DEBUG 只印魚油
+            if goods_code == "8133412":
+                print(f"頁面長度：{len(text)}")
+                for kw in ["折扣後價格", "促銷價", "折後價", "現折", "售價", "定價", "活動價", "特價"]:
+                    idx = text.find(kw)
+                    if idx != -1:
+                        print(f"[{kw}]：{text[max(0,idx-20):idx+60]}")
+                nums = re.findall(r'\b\d{4,5}\b', text)
+                print(f"4-5位數字：{nums[:20]}")
+
             price = extract_momo_price(html)
             if price:
                 momo_link = f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}"
                 return {"price": str(price), "url": momo_link}
         except Exception as e:
-            print(f"Momo 嘗試失敗：{e}")
-            continue
+            print(f"Momo 失敗：{e}")
     return None
 
 def generate_report():
