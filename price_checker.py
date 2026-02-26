@@ -1,12 +1,12 @@
-# import requests
+import requests
 from datetime import datetime
 
 products = [
     {"name": "Royal Canin UC33 貓飼料 10KG", "search": "Royal Canin 法國皇家泌尿道保健成貓UC33 10KG"},
-    {"name": "大研生醫瑪卡粉包5盒",           "search": "大研生醫精氣神瑪卡粉包7.4g 30包 5盒"},
-    {"name": "大研生醫魚油5盒",               "search": "大研生醫德國頂級魚油Omega-3 84% 60粒 5盒"},
-    {"name": "大研生醫B群5盒",                "search": "大研生醫B群緩釋雙層錠 30錠 5盒"},
-    {"name": "SK-II青春露330ml",              "search": "SK-II青春露330ml"},
+    {"name": "大研生醫瑪卡粉包5盒", "search": "大研生醫精氣神瑪卡粉包7.4g 30包 5盒"},
+    {"name": "大研生醫魚油5盒", "search": "大研生醫德國頂級魚油Omega-3 84% 60粒 5盒"},
+    {"name": "大研生醫B群5盒", "search": "大研生醫B群緩釋雙層錠 30錠 5盒"},
+    {"name": "SK-II青春露330ml", "search": "SK-II青春露330ml"},
 ]
 
 def get_pchome_detail(prod_id):
