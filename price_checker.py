@@ -38,7 +38,6 @@ products = [
     },
 ]
 
-# ── 共用 Session（含自動 retry）──────────────────────────
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
     "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
@@ -49,8 +48,8 @@ HEADERS = {
 def make_session():
     s = requests.Session()
     retry = Retry(
-        total=5,
-        backoff_factor=1.2,
+        total=2,              # 從5次降到2次
+        backoff_factor=0.5,   # 等待時間縮短
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["GET"],
         raise_on_status=False,
@@ -60,13 +59,12 @@ def make_session():
     s.mount("http://", adapter)
     return s
 
-def fetch_html(url, timeout=60):
+def fetch_html(url, timeout=15):   # timeout 從60秒降到15秒
     s = make_session()
     r = s.get(url, headers=HEADERS, timeout=timeout, allow_redirects=True)
     r.raise_for_status()
     return r.text
 
-# ── Telegram ─────────────────────────────────────────────
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}
@@ -75,7 +73,6 @@ def send_telegram(message):
     except Exception as e:
         print(f"Telegram 發送失敗：{e}")
 
-# ── PChome ───────────────────────────────────────────────
 def get_pchome_detail(prod_id):
     url = f"https://24h.pchome.com.tw/prod/{prod_id}"
     try:
@@ -112,7 +109,6 @@ def get_pchome_price(keyword):
         print(f"PChome 錯誤：{e}")
         return []
 
-# ── Momo ─────────────────────────────────────────────────
 def extract_momo_price(html):
     soup = BeautifulSoup(html, "lxml")
     text = soup.get_text(" ", strip=True)
@@ -123,16 +119,16 @@ def extract_momo_price(html):
         return int(m.group(1).replace(",", ""))
 
     # 備援：促銷價
-    m2 = re.search(r"促銷價\s*~~?([0-9,]+)~~?\s*元", text)
+    m2 = re.search(r"促銷價\s*([0-9,]+)\s*元", text)
     if m2:
         return int(m2.group(1).replace(",", ""))
 
-    # 再退一步：關鍵字附近最小價格
-    keywords = ["限時折後價", "折後價", "現折", "折扣"]
+    # 關鍵字附近最小價格
+    keywords = ["限時折後價", "折後價", "現折價", "折扣價"]
     for kw in keywords:
         idx = text.find(kw)
         if idx != -1:
-            window = text[max(0, idx-80): idx+120]
+            window = text[max(0, idx-30): idx+80]
             nums = re.findall(r'(\d{1,3}(?:,\d{3})+|\d{4,5})', window)
             prices = [int(n.replace(",", "")) for n in nums if int(n.replace(",", "")) > 100]
             if prices:
@@ -144,13 +140,14 @@ def get_momo_price(goods_code):
     if not goods_code:
         return None
     ts = int(time.time())
+    # 只用桌機版（行動版容易 timeout）
     urls_to_try = [
+        f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}",
         f"https://m.momoshop.com.tw/describe.momo?goodsCode={goods_code}&timeStamp={ts}",
-        f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}"
     ]
     for try_url in urls_to_try:
         try:
-            html = fetch_html(try_url, timeout=60)
+            html = fetch_html(try_url, timeout=15)
             price = extract_momo_price(html)
             if price:
                 momo_link = f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}"
@@ -160,7 +157,6 @@ def get_momo_price(goods_code):
             continue
     return None
 
-# ── 主報告 ───────────────────────────────────────────────
 def generate_report():
     now = datetime.now().strftime('%Y/%m/%d %H:%M')
     report = f"📦 <b>每日價格報告 {now}</b>\n"
