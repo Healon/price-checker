@@ -82,6 +82,10 @@ def get_pchome_price(keyword):
         data = res.json()
         results = []
         prods = data.get("prods") or []
+        # DEBUG
+        if prods:
+            print(f"[DEBUG] {keyword[:10]} 第一筆keys: {list(prods[0].keys())}")
+            print(f"[DEBUG] price={prods[0].get('price')} originPrice={prods[0].get('originPrice')}")
         for item in prods[:3]:
             prod_id = item["Id"]
             sale_price = item.get("price")
