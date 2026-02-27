@@ -1,12 +1,12 @@
 import re
 import time
 import requests
+import zoneinfo
 from bs4 import BeautifulSoup
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import os
 from datetime import datetime
-import zoneinfo
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -78,13 +78,13 @@ def get_pchome_detail(prod_id):
     url = f"https://24h.pchome.com.tw/prod/{prod_id}"
     try:
         html = fetch_html(url)
-        # 抓 JSON-LD 結構化資料，比 regex 更準確
-        import json
-        m = re.search(r'"price"\s*:\s*(\d+)', html)
-        m2 = re.search(r'"originalPrice"\s*:\s*(\d+)|"originPrice"\s*:\s*(\d+)', html)
-        sale = int(m.group(1)) if m else None
-        orig = int((m2.group(1) or m2.group(2))) if m2 else None
-        return str(sale), str(orig) if orig else None
+        prices = re.findall(r'\$([0-9,]+)', html)
+        prices = [int(p.replace(",", "")) for p in prices if int(p.replace(",", "")) > 100]
+        if len(prices) >= 2:
+            return str(prices[0]), str(prices[1])
+        elif len(prices) == 1:
+            return str(prices[0]), None
+        return None, None
     except:
         return None, None
 
@@ -96,16 +96,16 @@ def get_pchome_price(keyword):
         data = res.json()
         prods = data.get("prods") or []
         results = []
-        for item in prods[:3]:
+        for i, item in enumerate(prods[:3]):
             prod_id = item["Id"]
             api_price = item.get("price")
-            # 只有第一筆去抓內頁取得原價
-            if item == prods[0]:
+            if i == 0:
+                # 只有第一筆去抓內頁，取得正確折扣價與原價
                 sale_price, origin_price = get_pchome_detail(prod_id)
                 if not sale_price:
                     sale_price = str(api_price)
             else:
-                sale_price = str(api_price)
+                sale_price = str(api_price) if api_price else None
                 origin_price = None
             results.append({
                 "name": item["name"],
@@ -127,7 +127,7 @@ def extract_momo_price(html):
     if m:
         return int(m.group(1).replace(",", ""))
 
-    # 2. 促銷價（魚油等商品用這個）
+    # 2. 促銷價
     m2 = re.search(r"促銷價\s*([0-9,]+)\s*元", text)
     if m2:
         return int(m2.group(1).replace(",", ""))
@@ -148,7 +148,6 @@ def get_momo_price(goods_code):
     if not goods_code:
         return None
     ts = int(time.time())
-    # 行動版優先（比桌機版更少被封鎖）
     urls_to_try = [
         f"https://m.momoshop.com.tw/describe.momo?goodsCode={goods_code}&timeStamp={ts}",
         f"https://www.momoshop.com.tw/goods/GoodsDetail.jsp?i_code={goods_code}",
