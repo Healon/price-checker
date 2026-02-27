@@ -74,26 +74,43 @@ def send_telegram(message):
     except Exception as e:
         print(f"Telegram 發送失敗：{e}")
 
+def get_pchome_detail(prod_id):
+    url = f"https://24h.pchome.com.tw/prod/{prod_id}"
+    try:
+        html = fetch_html(url)
+        # 抓 JSON-LD 結構化資料，比 regex 更準確
+        import json
+        m = re.search(r'"price"\s*:\s*(\d+)', html)
+        m2 = re.search(r'"originalPrice"\s*:\s*(\d+)|"originPrice"\s*:\s*(\d+)', html)
+        sale = int(m.group(1)) if m else None
+        orig = int((m2.group(1) or m2.group(2))) if m2 else None
+        return str(sale), str(orig) if orig else None
+    except:
+        return None, None
+
 def get_pchome_price(keyword):
     url = "https://ecshweb.pchome.com.tw/search/v3.3/all/results"
     params = {"q": keyword, "page": 1, "sort": "rnk/dc"}
     try:
         res = requests.get(url, params=params, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
         data = res.json()
-        results = []
         prods = data.get("prods") or []
-        # DEBUG
-        if prods:
-            print(f"[DEBUG] {keyword[:10]} 第一筆keys: {list(prods[0].keys())}")
-            print(f"[DEBUG] price={prods[0].get('price')} originPrice={prods[0].get('originPrice')}")
+        results = []
         for item in prods[:3]:
             prod_id = item["Id"]
-            sale_price = item.get("price")
-            origin_price = item.get("originPrice")
+            api_price = item.get("price")
+            # 只有第一筆去抓內頁取得原價
+            if item == prods[0]:
+                sale_price, origin_price = get_pchome_detail(prod_id)
+                if not sale_price:
+                    sale_price = str(api_price)
+            else:
+                sale_price = str(api_price)
+                origin_price = None
             results.append({
                 "name": item["name"],
-                "origin_price": str(origin_price) if origin_price else None,
-                "final_price": str(sale_price) if sale_price else None,
+                "origin_price": origin_price,
+                "final_price": sale_price,
                 "url": f"https://24h.pchome.com.tw/prod/{prod_id}"
             })
         return results
